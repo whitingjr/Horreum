@@ -3,8 +3,12 @@ package io.hyperfoil.tools;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import org.jboss.logging.Logger;
+import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
+import org.jboss.resteasy.client.jaxrs.internal.ResteasyClientBuilderImpl;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
+import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.KeycloakBuilder;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.ContainerState;
 import org.testcontainers.containers.DockerComposeContainer;
@@ -38,6 +42,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
+import io.restassured.RestAssured;
+import io.restassured.specification.RequestSpecification;
+
 public class HorreumTestExtension implements BeforeAllCallback, ExtensionContext.Store.CloseableResource  {
 
     public static Properties configProperties;
@@ -50,6 +57,9 @@ public class HorreumTestExtension implements BeforeAllCallback, ExtensionContext
 
     private static final String CONTAINER_HOST_IP;
     private static final String CONTAINER_JAVA_OPTIONS;
+
+    private static final String COMPOSE_OVERRIDE;
+    private static final String HORREUM_COMPOSE;
 
     private static final Integer HORREUM_HTTP_PORT = 8080;
     private static final Integer HORREUM_HTTPS_PORT = 8443;
@@ -66,6 +76,12 @@ public class HorreumTestExtension implements BeforeAllCallback, ExtensionContext
     private static final Integer ContainerStartRetries = 1;
 
     private static final Logger log = Logger.getLogger(HorreumTestExtension.class);
+
+    private static Keycloak keycloak;
+    private static final String keycloakRealm = "horreum";
+    private static final String clientId = "horreum-ui";
+
+    protected static final ResteasyClientBuilder clientBuilder;
 
     static {
         configProperties = new Properties();
@@ -88,8 +104,16 @@ public class HorreumTestExtension implements BeforeAllCallback, ExtensionContext
                 throw new RuntimeException("Could not load application properties");
             }
 
-            HORREUM_TEST_PORT_OFFSET = Integer.parseInt(getProperty("test.port.offset"));
-            CONTAINER_HOST_IP = getProperty("container.host.ip");
+            COMPOSE_OVERRIDE = System.getProperty("COMPOSE_OVERRIDE", "docker-compose");
+            if (COMPOSE_OVERRIDE.equals("podman-compose")) {
+                HORREUM_TEST_PORT_OFFSET = 0;
+                HORREUM_COMPOSE = "podman-compose-horreum.yml";
+                CONTAINER_HOST_IP = "localhost";
+            } else {
+                HORREUM_TEST_PORT_OFFSET = Integer.parseInt(getProperty("test.port.offset"));
+                HORREUM_COMPOSE = "docker-compose-horreum.yml";
+                CONTAINER_HOST_IP = getProperty("container.host.ip");
+            }
 
             HORREUM_KEYCLOAK_BASE_URL = "http://" + CONTAINER_HOST_IP + ":" + getOffsetPort(KEYCLOAK_PORT);
             HORREUM_BASE_URL = "http://127.0.0.1:" + getOffsetPort(HORREUM_HTTP_PORT);
@@ -102,6 +126,21 @@ public class HorreumTestExtension implements BeforeAllCallback, ExtensionContext
             START_HORREUM_INFRA = Boolean.parseBoolean(getProperty("horreum.start-infra"));
             STOP_HORREUM_INFRA = Boolean.parseBoolean(getProperty("horreum.stop-infra"));
             HORREUM_DUMP_LOGS = Boolean.parseBoolean(getProperty("horreum.dump-logs"));
+
+            clientBuilder = new ResteasyClientBuilderImpl().connectionPoolSize(20);
+
+            keycloak = KeycloakBuilder.builder()
+                  .serverUrl(HORREUM_KEYCLOAK_BASE_URL)
+                  .realm(keycloakRealm)
+                  .username(HORREUM_USERNAME)
+                  .password(HORREUM_PASSWORD)
+                  .clientId(clientId)
+                  .clientSecret(null)
+                  .resteasyClient(clientBuilder.build())
+                  .build();
+
+            RestAssured.baseURI = "http://" + CONTAINER_HOST_IP;
+            RestAssured.port = Integer.parseInt(getOffsetPort(HORREUM_HTTP_PORT));
         } catch (IOException ioException) {
             throw new RuntimeException("Failed to load configuration properties");
         }
@@ -137,7 +176,7 @@ public class HorreumTestExtension implements BeforeAllCallback, ExtensionContext
 
             String CONTAINER_HOST_HTTP_ROOT = "http://" + CONTAINER_HOST_IP + ":";
             String KEYCLOAK_OFFSET_PORT = getOffsetPort(KEYCLOAK_PORT);
-            String KEYCLOAK_URL_ROOT = "http://172.17.0.1:" + KEYCLOAK_OFFSET_PORT;
+            String KEYCLOAK_URL_ROOT = "http://"+ CONTAINER_HOST_IP + ":" + KEYCLOAK_OFFSET_PORT;
 
             String QUARKUS_DATASOURCE_PASSWORD = getProperty("quarkus.datasource.password");
             String HORREUM_GRAFANA_ADMIN_PASSWORD = getProperty("horreum.grafana.admin.password");
@@ -180,9 +219,9 @@ public class HorreumTestExtension implements BeforeAllCallback, ExtensionContext
 
             prepareDockerCompose();
 
-            infrastructureContainer = new TestContainer("target/docker-compose/infra/docker-compose.yml", envVariables)
-                  .withRemoveImages(DockerComposeContainer.RemoveImages.LOCAL);
-            horreumContainer = new TestContainer("target/docker-compose/horreum-compose.yml", envVariables);
+            infrastructureContainer = new TestContainer("target/docker-compose/infra/" + COMPOSE_OVERRIDE + ".yml", envVariables)
+                  .withRemoveImages(DockerComposeContainer.RemoveImages.LOCAL);;
+            horreumContainer = new TestContainer("target/docker-compose/" + HORREUM_COMPOSE, envVariables);
 
             log.info("Waiting for Horreum infrastructure to start");
 
@@ -251,8 +290,8 @@ public class HorreumTestExtension implements BeforeAllCallback, ExtensionContext
                 }
             });
             //noinspection ConstantConditions
-            Files.copy(HorreumTestExtension.class.getClassLoader().getResourceAsStream("testcontainers/horreum-compose.yml"),
-                  Path.of("target/docker-compose/horreum-compose.yml"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(HorreumTestExtension.class.getClassLoader().getResourceAsStream("testcontainers/" + HORREUM_COMPOSE),
+                  Path.of("target/docker-compose/" + HORREUM_COMPOSE), StandardCopyOption.REPLACE_EXISTING);
         } finally {
             if (fileSystem != null) {
                 fileSystem.close();
@@ -336,5 +375,10 @@ public class HorreumTestExtension implements BeforeAllCallback, ExtensionContext
             withLocalCompose(true);
             withEnv(envVariables);
         }
+    }
+
+    public static RequestSpecification bareRequest(){
+        String access_token = keycloak.tokenManager().getAccessToken().getToken();
+        return RestAssured.given().auth().oauth2(access_token);
     }
 }

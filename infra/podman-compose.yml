@@ -6,6 +6,15 @@ services:
     image: docker.io/postgres:12
     env_file: postgres.env
     network_mode: host
+    environment:
+    - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+    - PG_PORT=${POSTGRES_PORT:-5432}
+    # due to https://docs.docker.com/compose/compose-file/compose-file-v3/#ports ports being mutually exclusive
+    # this breaks running the test suite in conjunction with Quarkus dev mode.
+  # port here is not compatible with docker-compose. However it is necessary when using podman-compose v0.7.3 to
+  # to start infrastructure containers.
+#    port:
+ #     - "5432:5432"
     volumes:
     - horreum_pg12:/var/lib/postgresql/data
   db-init:
@@ -15,8 +24,8 @@ services:
     restart: on-failure
     env_file: postgres.env
     environment:
-    - PGHOST=localhost
-    - PGPORT=5432
+    - PGHOST=${CONTAINER_HOST_IP:-localhost}
+    - PGPORT=${POSTGRES_PORT:-5432}
     volumes:
     - ../:/cwd:ro,z
     command:
@@ -32,7 +41,9 @@ services:
     - postgres
     environment:
     - KC_HTTP_HOST=127.0.0.1
-    - DB_ADDR=127.0.0.1
+    - EXTRA_OPTIONS=-Djboss.bind.address=0.0.0.0 -Djboss.bind.address.private=127.0.0.1
+    - DB_ADDR=${CONTAINER_HOST_IP:-localhost}
+    - DB_PORT=${POSTGRES_PORT:-5432}
     network_mode: host
     volumes:
     - ../:/cwd:rw,z
@@ -46,8 +57,8 @@ services:
     - -x
     - /cwd/infra/app-init.sh
     environment:
-    - POSTGRES_HOST=127.0.0.1
-    - KEYCLOAK_HOST=127.0.0.1
+    - POSTGRES_HOST=${CONTAINER_HOST_IP:-localhost}
+    - KEYCLOAK_HOST=${CONTAINER_HOST_IP:-localhost}
     network_mode: host
     volumes:
     - ../:/cwd:rw,z

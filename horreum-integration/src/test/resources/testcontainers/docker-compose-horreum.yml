@@ -15,15 +15,14 @@ services:
       - "QUARKUS_OIDC_AUTH_SERVER_URL=${HORREUM_QUARKUS_OIDC_AUTH_SERVER_URL}"
       - QUARKUS_LOG_LEVEL=INFO
       - HORREUM_GRAFANA_ADMIN_PASSWORD=${HORREUM_GRAFANA_ADMIN_PASSWORD}
-      - HORREUM_GRAFANA_ADMIN_PASSWORD=secret
       - "HORREUM_GRAFANA_MP_REST_URL=${GRAFANA_GF_SERVER_ROOT_URL}"
       - "HORREUM_GRAFANA_URL=${GRAFANA_GF_SERVER_ROOT_URL}"
       - HORREUM_TEST=true
       - "JAVA_OPTIONS=${CONTAINER_JAVA_OPTIONS}"
     env_file: horreum-backend/.env
-    ports:
-      - "${HORREUM_HTTPS_PORT}:8443"
-      - "${HORREUM_HTTP_PORT}:8080"
+#    ports:
+#      - "${HORREUM_HTTPS_PORT}:8443"
+#      - "${HORREUM_HTTP_PORT}:8080"
     stop_signal: SIGKILL
     volumes:
       - ./:/etc/horreum/certs:ro,z
