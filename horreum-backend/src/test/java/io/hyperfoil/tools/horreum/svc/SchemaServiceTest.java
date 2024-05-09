@@ -6,12 +6,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hyperfoil.tools.horreum.api.SortDirection;
-import io.hyperfoil.tools.horreum.api.data.Access;
-import io.hyperfoil.tools.horreum.api.data.Extractor;
-import io.hyperfoil.tools.horreum.api.data.Label;
-import io.hyperfoil.tools.horreum.api.data.Schema;
-import io.hyperfoil.tools.horreum.api.data.Test;
-import io.hyperfoil.tools.horreum.api.data.Transformer;
+import io.hyperfoil.tools.horreum.api.data.*;
 import io.hyperfoil.tools.horreum.api.report.TableReport;
 import io.hyperfoil.tools.horreum.api.report.TableReportConfig;
 import io.hyperfoil.tools.horreum.api.services.SchemaService;
@@ -746,6 +741,37 @@ class SchemaServiceTest extends BaseServiceTest {
       assertEquals(0, runSchemasAfter.size());
       List<?> datasetSchemasAfter = em.createNativeQuery("SELECT * FROM dataset_schemas").getResultList();
       assertEquals(0, datasetSchemasAfter.size());
+   }
+
+   @org.junit.jupiter.api.Test
+   void testImportWithLabel() throws JsonProcessingException { // import a Schema and Label as the UI would do it. In one go.
+      String uri = "urn:dummy:0.1";
+      SchemaExport schema = new SchemaExport();
+      assertNotNull(schema.access);
+      ObjectNode jsonSchema = FACTORY.objectNode();
+      schema.schema = jsonSchema;
+      jsonSchema.put("$id", uri);
+      jsonSchema.put("type", "object");
+      jsonSchema.put("name", "foo");
+      jsonSchema.put("uri", uri);
+      jsonSchema.put("id", 221);
+      jsonSchema.put("uri", uri);
+      jsonSchema.put("description", "acme schema");
+      jsonSchema.put("access", "PUBLIC");
+      jsonSchema.put("owner", "perf-team");
+      schema.labels = new ArrayList<>();
+      Label label = new Label();
+      schema.labels.add(label);
+      label.name = "acme_bar_label";
+      label.filtering = true;
+      label.metrics = true;
+      label.owner = "perf-team";
+      List<Extractor> extractors = new ArrayList<>();
+      label.extractors = extractors;
+      Extractor extractor = new Extractor("value", "$.baz", false);
+      extractors.add(extractor);
+      schema.transformers = new ArrayList<>();
+      addOrUpdateSchema(schema);
    }
 
    // utility to get list of schemas

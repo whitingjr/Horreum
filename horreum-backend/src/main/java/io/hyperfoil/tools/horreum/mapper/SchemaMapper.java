@@ -1,5 +1,6 @@
 package io.hyperfoil.tools.horreum.mapper;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hyperfoil.tools.horreum.entity.data.SchemaDAO;
 import io.hyperfoil.tools.horreum.api.data.Schema;
 
@@ -8,7 +9,7 @@ public class SchemaMapper {
         Schema dto = new Schema();
         dto.id = s.id;
         dto.name = s.name;
-        dto.schema = s.schema;
+        dto.schema = (ObjectNode) s.schema;
         dto.description = s.description;
         dto.uri = s.uri;
         dto.owner = s.owner;

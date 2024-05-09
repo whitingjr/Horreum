@@ -83,6 +83,8 @@ public class BaseServiceTest {
    private static String TESTER_TOKEN;
    private static String ADMIN_TOKEN;
 
+   public static final JsonNodeFactory FACTORY = JsonNodeFactory.instance;
+
    int lastAddedLabelId;
 
    protected final Logger log = Logger.getLogger(getClass());
