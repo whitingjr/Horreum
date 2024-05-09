@@ -1066,4 +1066,13 @@ public class BaseServiceTest {
          throw new AssertionError("Cannot deserialize " + event + " from " + changeJson.toPrettyString(), e);
       }
    }
+
+   protected Schema importSchema(Schema schema) {
+      Response response = jsonRequest().contentType(MediaType.APPLICATION_JSON)
+          .body(schema).post("/api/schema/import");
+      response.then().statusCode(200);
+      schema.id = Integer.parseInt(response.body().asString());
+      return schema;
+   }
+
 }

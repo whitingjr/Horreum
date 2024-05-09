@@ -748,30 +748,31 @@ class SchemaServiceTest extends BaseServiceTest {
       String uri = "urn:dummy:0.1";
       SchemaExport schema = new SchemaExport();
       assertNotNull(schema.access);
+      schema.name = "foo";
+      schema.uri = uri;
+      schema.id = 221;
+      schema.description = "acme schema description";
+      schema.owner = "perf-team";
       ObjectNode jsonSchema = FACTORY.objectNode();
       schema.schema = jsonSchema;
       jsonSchema.put("$id", uri);
       jsonSchema.put("type", "object");
-      jsonSchema.put("name", "foo");
-      jsonSchema.put("uri", uri);
-      jsonSchema.put("id", 221);
-      jsonSchema.put("uri", uri);
-      jsonSchema.put("description", "acme schema");
-      jsonSchema.put("access", "PUBLIC");
-      jsonSchema.put("owner", "perf-team");
+      jsonSchema.put("$schema", "http://json-schema.org/draft-07/schema#");
       schema.labels = new ArrayList<>();
       Label label = new Label();
       schema.labels.add(label);
       label.name = "acme_bar_label";
       label.filtering = true;
       label.metrics = true;
+      label.schemaId = 221;
+      label.access = Access.PUBLIC;
       label.owner = "perf-team";
       List<Extractor> extractors = new ArrayList<>();
       label.extractors = extractors;
       Extractor extractor = new Extractor("value", "$.baz", false);
       extractors.add(extractor);
       schema.transformers = new ArrayList<>();
-      addOrUpdateSchema(schema);
+      importSchema(schema);
    }
 
    // utility to get list of schemas
