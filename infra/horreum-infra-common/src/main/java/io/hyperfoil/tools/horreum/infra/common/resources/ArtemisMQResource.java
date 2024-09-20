@@ -1,6 +1,7 @@
 package io.hyperfoil.tools.horreum.infra.common.resources;
 
 import static io.hyperfoil.tools.horreum.infra.common.Const.*;
+import static io.hyperfoil.tools.horreum.infra.common.HorreumResources.waitForContainerReady;
 
 import java.util.Collections;
 import java.util.Map;
@@ -50,11 +51,12 @@ public class ArtemisMQResource implements ResourceLifecycleManager {
             amqpContainer.withNetworkAliases(networkAlias);
         }
         amqpContainer.start();
+        waitForContainerReady(amqpContainer, "Server is now active");
         String mappedPort = amqpContainer.getMappedPort(5672).toString();
         String host = inContainer ? networkAlias : "localhost";
 
-        return Map.of(HORREUM_DEV_AMQP_MAPPED_PORT, mappedPort,
-                HORREUM_DEV_AMQP_MAPPED_HOST, host);
+        return Map.of("artemis.container.name", host,
+                "artemis.container.port", mappedPort);
     }
 
     @Override
